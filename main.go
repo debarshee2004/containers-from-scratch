@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"syscall"
 )
 
@@ -56,6 +57,16 @@ func cg() {
 		panic(err)
 	}
 
+	must(os.WriteFile(filepath.Join(pids, "liz/pids.max"), []byte("20"), 0700))
+
+	must(os.WriteFile(filepath.Join(pids, "liz/notify_on_release"), []byte("1"), 0700))
+	must(os.WriteFile(filepath.Join(pids, "liz/cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0700))
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
