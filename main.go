@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 )
 
@@ -19,7 +20,8 @@ func run() {
 	cmd.Stderr = os.Stderr
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWPID, // New container namespace
+		Cloneflags:   syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS, // New container namespace
+		Unshareflags: syscall.CLONE_NEWNS,
 	}
 
 	cmd.Run()
@@ -28,7 +30,12 @@ func run() {
 func child() {
 	fmt.Printf("Running the container with command: %v - %d\n", os.Args[2:], os.Getpid())
 
+	cg()
+
 	syscall.Sethostname([]byte("container"))
+	syscall.Chroot("/path/to/rootfs")
+	syscall.Chdir("/")
+	syscall.Mount("proc", "/proc", "proc", 0, "")
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 	cmd.Stdin = os.Stdin
@@ -36,6 +43,19 @@ func child() {
 	cmd.Stderr = os.Stderr
 
 	cmd.Run()
+
+	syscall.Unmount("/proc", 0)
+}
+
+func cg() {
+	cgroup := "/sys/fs/cgroup"
+	pids := filepath.Join(cgroup, "pids")
+	err := os.Mkdir(filepath.Join(pids, "liz"), 0755)
+
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+
 }
 
 func main() {
